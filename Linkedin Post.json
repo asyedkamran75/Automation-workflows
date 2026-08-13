@@ -1,0 +1,426 @@
+{
+  "name": "Linkedin Post",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "X-Post Automation",
+        "formDescription": "Automating the process of X-Post creation",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Topic",
+              "placeholder": "Artificial Intelligence",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -704,
+        -32
+      ],
+      "id": "13407e8b-4601-4c8f-ad10-85aca88a03d7",
+      "name": "On form submission",
+      "webhookId": "d4a479d3-bf9d-4ca9-9a26-fc797ca03308"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -320,
+        192
+      ],
+      "id": "acb1bf2c-d5c3-4bde-a8fb-da416f53f765",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "geIGkKH12CXyQHUW",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "query": "={{ $json.Topic }}",
+        "options": {}
+      },
+      "type": "@tavily/n8n-nodes-tavily.tavilyTool",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        192
+      ],
+      "id": "cff79995-a975-4005-bbf7-3942a85e372f",
+      "name": "Search in Tavily",
+      "credentials": {
+        "tavilyApi": {
+          "id": "anyd8oIOd6lkUD59",
+          "name": "Tavily account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1deb89db-74f6-4e8e-87a4-9656bdd3346a",
+              "name": "Post",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -112,
+        -32
+      ],
+      "id": "70abb77d-0e04-4300-bfd3-94386b24bce9",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "sendTo": "asyedkamran75@gmail.com",
+        "subject": "Approval Requied for X-Post",
+        "message": "=             Good to go\n {{ $json.Post }}",
+        "responseType": "freeText",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        112,
+        -32
+      ],
+      "id": "f2875233-0bac-4031-9830-92b58baed290",
+      "name": "Send message and wait for response",
+      "webhookId": "d1995868-ac56-4b64-aab4-9fb7b020b22b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "6UbNgpcE3KwNRY72",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputText": "={{ $json.data.text }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "approved",
+              "description": "=The post has been reviewed and accepted as-is. The human explicitly or implicitly expresses approval, indicating that no changes are needed.  Example phrases include:  \"Looks good.\" \"Go ahead and send it.\" \"This works for me.\" \"Approved.\" \"No changes needed.\" \"Good to go.\""
+            },
+            {
+              "category": "declined",
+              "description": "The post has been reviewed, but the human requests modifications before it is sent like tweaks, removing parts, rewording, etc. This could include suggested edits, rewording, or major revisions.  Example phrases include:  \"Can we tweak this part?\" \"make it shorter\" \"change the source to 'American Kennel Club'\" \"more emojis\""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        336,
+        -32
+      ],
+      "id": "d9addfad-0319-4b39-8639-d28cf3b33200",
+      "name": "Text Classifier"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        272,
+        176
+      ],
+      "id": "494cf714-2e3c-42ea-a94c-a21bb72caadc",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "geIGkKH12CXyQHUW",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "person": "m6UQX_VY6p",
+        "text": "={{ $('Edit Fields').item.json.Post }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        704,
+        -128
+      ],
+      "id": "1d3c3318-7ef2-4318-8844-33e8dd497e14",
+      "name": "Create a post",
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "FB7OE4WcIxy1rFtq",
+          "name": "LinkedIn account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        576
+      ],
+      "id": "9fc5fd64-0d2a-44d7-9f7e-79be7875cd12",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "geIGkKH12CXyQHUW",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "query": "Aritificaial  Intelligence",
+        "options": {}
+      },
+      "type": "@tavily/n8n-nodes-tavily.tavilyTool",
+      "typeVersion": 1,
+      "position": [
+        464,
+        576
+      ],
+      "id": "0e67610d-e32f-436f-94cd-e493bf971b94",
+      "name": "Search in Tavily1",
+      "credentials": {
+        "tavilyApi": {
+          "id": "anyd8oIOd6lkUD59",
+          "name": "Tavily account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Topic: {{ $json.Topic }}",
+        "options": {
+          "systemMessage": "=# Overview\nYou are an AI agent responsible for creating Twitter (X) posts based on user requests.\nPosts should always be less than 200 characters.\n\n## Instructions\n1. Always use the Tavily Search tool to find accurate, current information about the topic.\n2. Write an informative, engaging tweet (up to 180 characters).\n3. Include a brief reference to the source (e.g., \"via TechCrunch\", \"according to The Verge\") directly in the tweet.\n4. Do not output anything except the final tweet.\n\n## Tool\n- Tavily Search: Use this for real-time web search. Must be used every time before creating the post.\nCurrent data and time: {{ $json.submittedAt }}\n\n## Example\n1) Input: \"Create a tweet about NASA’s latest discovery.\"\n2) Action: Search the web using Tavily Search.\n3) Output: \"NASA just found signs of ancient riverbeds on Mars—suggesting the Red Planet may have once been home to life. Huge leap in space exploration 🌍 (via NASA) #Mars #SpaceNews\"\n\n## Final Notes\n- Avoid clickbait or speculation—stick to factual and sourced content.\n- Always use hashtags.\n- Use emojis only to enhance visibility.\n- Keep language friendly, concise, and informative.\n- Never use an \"@\" symbol when referencing the source."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -480,
+        -32
+      ],
+      "id": "e121da00-c36c-4a5e-b3db-31ea9e25f8ff",
+      "name": "X-Post Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Here is the post to revise:  {{ $('Edit Fields').item.json.Post }}\n\nHere is the human feedback: ",
+        "options": {
+          "systemMessage": "=# Overview\nYou are an expert twitter writer. Your job is to take an incoming post and revise it based on the feedback the human submitted.\nMake sure the post characters cannot exceed the 280 characters.\nAlso if the revisement needs real time data then use tavily tool to search real-time data otherwise ignore tavily.\n\n## Tool\n- Tavily Search: Use this for real-time web search. Current data and time : {{ $now }}\n\n## Instruction\n- Just give only output text means post text. Don't include text like \"Here is your revised version...\" or something at the ending like \"now's now\" etc."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        480,
+        336
+      ],
+      "id": "d991b210-23df-4a46-9e6e-5c84515d51a2",
+      "name": "Revision Agent"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "X-Post Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "X-Post Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search in Tavily": {
+      "ai_tool": [
+        [
+          {
+            "node": "X-Post Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Send message and wait for response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message and wait for response": {
+      "main": [
+        [
+          {
+            "node": "Text Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Text Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Classifier": {
+      "main": [
+        [
+          {
+            "node": "Create a post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Revision Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Revision Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search in Tavily1": {
+      "ai_tool": [
+        [
+          {
+            "node": "Revision Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "X-Post Agent": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Revision Agent": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "d9c5512f-c9f6-44d3-ac1c-b556c10b4b37",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e2d017eaa482267b9e66bffe4a34a40c5219ad6c8c2d53f30ee2f951e263fdb2"
+  },
+  "nodeGroups": [],
+  "id": "LNHZS5HcW3NWo9YV",
+  "tags": []
+}
