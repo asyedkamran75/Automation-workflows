@@ -39,7 +39,8 @@ Connects Slack with AI to automate conversations and streamline team communicati
 ### 🔗 Parent & Child Workflows
 Demonstrates modular workflow design in n8n by splitting complex automation into reusable child workflows — keeping things clean, reusable across projects, and easier to debug and maintain.
 
-**File:** `parent-child-workflow.json`
+**File:** `parent-workflow.json    
+           child-workflow.json`
 **Tech stack:** n8n, Execute Workflow node
 
 ---
