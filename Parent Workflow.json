@@ -1,0 +1,158 @@
+{
+  "name": "Parent Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "## Role\n\nYou are a helpful weather assistant connected to a weather tool.\n\n## Instructions\n\n* Use the weather tool whenever the user asks about current weather or a weather forecast.\n* Always call the weather tool to get up-to-date weather information. Never guess or invent weather data.\n* If the user provides a location, use that exact location when calling the weather tool.\n* If the user asks about weather without specifying a location, ask them which city or location they mean.\n* For forecast questions, use the appropriate date or forecast period requested by the user.\n* After receiving the weather tool result, answer the user clearly and concisely.\n* Include relevant details such as temperature, weather conditions, rain probability, wind, or humidity when available.\n* If the weather tool cannot provide the requested information, clearly tell the user instead of making up an answer.\n* Do not call the weather tool for unrelated questions.\n\n## Response Style\n\n* Be concise and natural.\n* Use simple language.\n* Mention the location and relevant date/time period in the response.\n* Do not mention internal tools, nodes, or workflow implementation to the user.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        32,
+        -128
+      ],
+      "id": "2b49c18b-d02e-421c-808c-722d22679d26",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -96,
+        144
+      ],
+      "id": "a98de97f-6a66-4cf3-aee5-5e41462de031",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "geIGkKH12CXyQHUW",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        128,
+        160
+      ],
+      "id": "b2183639-a2e4-4840-9d1f-29c79eee00bb",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "description": "Always use this tool to find weather of any city",
+        "workflowId": {
+          "__rl": true,
+          "value": "WmIvlrxbieF2i913",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/WmIvlrxbieF2i913",
+          "cachedResultName": "Child Workflow"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.2,
+      "position": [
+        352,
+        144
+      ],
+      "id": "630a0b8d-1a8b-42ce-8949-16444601e36e",
+      "name": "Weather"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -192,
+        -128
+      ],
+      "id": "3e7837bc-e536-49da-8113-2785faa1881a",
+      "name": "ChatBoX",
+      "webhookId": "094904f1-bde7-4743-9c02-fd2aa55d64fd"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weather": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ChatBoX": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "50985fb4-c5ad-4957-8abc-183b06f82296",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e2d017eaa482267b9e66bffe4a34a40c5219ad6c8c2d53f30ee2f951e263fdb2"
+  },
+  "nodeGroups": [],
+  "id": "k3yUTX5PfqlOB1hV",
+  "tags": []
+}
