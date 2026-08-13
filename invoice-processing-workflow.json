@@ -13,10 +13,9 @@
         "triggerOn": "specificFolder",
         "folderToWatch": {
           "__rl": true,
-          "value": "1q_KnZbj1mKYC2CdAS6ak1bRVjeVsxFaQ",
+          "value": "YOUR_GOOGLE_DRIVE_FOLDER_ID",
           "mode": "list",
-          "cachedResultName": "INVoices.pk",
-          "cachedResultUrl": "https://drive.google.com/drive/folders/1q_KnZbj1mKYC2CdAS6ak1bRVjeVsxFaQ"
+          "cachedResultName": "Invoices"
         },
         "event": "fileUpdated",
         "options": {
@@ -33,7 +32,7 @@
       "name": "Google Drive Trigger",
       "credentials": {
         "googleDriveOAuth2Api": {
-          "id": "KFGycZY0zCOFPnur",
+          "id": "YOUR_CREDENTIAL_ID",
           "name": "Google Drive account"
         }
       }
@@ -58,7 +57,7 @@
       "name": "Download file",
       "credentials": {
         "googleDriveOAuth2Api": {
-          "id": "KFGycZY0zCOFPnur",
+          "id": "YOUR_CREDENTIAL_ID",
           "name": "Google Drive account"
         }
       }
@@ -154,9 +153,8 @@
       "name": "OpenAI Chat Model",
       "credentials": {
         "openAiApi": {
-          "id": null,
-          "name": "",
-          "__aiGatewayManaged": true
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "OpenAI account"
         }
       }
     },
@@ -175,7 +173,7 @@
             },
             {
               "role": "system",
-              "content": "=You are the Billing Notification Assistant for Voxora AI Agency.\n\nYour responsibility is to professionally notify the billing team whenever a new invoice has been successfully received, processed, and recorded in the Invoice Database.\n\n## Email Task\n\nWhen invoice details are provided, compose a professional email to the billing team that includes:\n\n- Confirmation that a new invoice has been received.\n- The invoice number.\n- The client/company name.\n- The invoice date.\n- The due date.\n- The total invoice amount.\n- Confirmation that the invoice has been successfully recorded in the Invoice Database.\n- A direct link to the Invoice Database for reference:\n\nhttps://docs.google.com/spreadsheets/d/1L6nZ5vGPpzEuwWxhoDQXO3ZwY_08CYoHAjTBa1tlJIY/edit?gid=0#gid=0\n## Rules\n\n- Use only the invoice information provided.\n- Do not guess, infer, or create missing information.\n- If any requested field is unavailable, omit it.\n- Keep the email clear, concise, and professional.\n- Generate the email subject and email body as two completely separate outputs.\n- Do not include the subject inside the email body.\n- Do not repeat the subject within the email body.\n- The email body should begin with an appropriate greeting and end with a professional closing.\n- Do not include explanations, markdown, or any additional text outside the requested output.\n\n## Output Format\n\nReturn ONLY the following fields:\n\nSubject:\n<Email Subject>\n\nEmail:\n<Email Body Only>\n\nDo not merge the subject into the email body. They must remain completely separate so they can be used independently in an automation workflow."
+              "content": "=You are the Billing Notification Assistant for the agency.\n\nYour responsibility is to professionally notify the billing team whenever a new invoice has been successfully received, processed, and recorded in the Invoice Database.\n\n## Email Task\n\nWhen invoice details are provided, compose a professional email to the billing team that includes:\n\n- Confirmation that a new invoice has been received.\n- The invoice number.\n- The client/company name.\n- The invoice date.\n- The due date.\n- The total invoice amount.\n- Confirmation that the invoice has been successfully recorded in the Invoice Database.\n- A direct link to the Invoice Database for reference:\n\nYOUR_GOOGLE_SHEET_LINK\n## Rules\n\n- Use only the invoice information provided.\n- Do not guess, infer, or create missing information.\n- If any requested field is unavailable, omit it.\n- Keep the email clear, concise, and professional.\n- Generate the email subject and email body as two completely separate outputs.\n- Do not include the subject inside the email body.\n- Do not repeat the subject within the email body.\n- The email body should begin with an appropriate greeting and end with a professional closing.\n- Do not include explanations, markdown, or any additional text outside the requested output.\n\n## Output Format\n\nReturn ONLY the following fields:\n\nSubject:\n<Email Subject>\n\nEmail:\n<Email Body Only>\n\nDo not merge the subject into the email body. They must remain completely separate so they can be used independently in an automation workflow."
             }
           ]
         },
@@ -199,9 +197,8 @@
       "name": "Message a model",
       "credentials": {
         "openAiApi": {
-          "id": null,
-          "name": "",
-          "__aiGatewayManaged": true
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "OpenAI account"
         }
       }
     },
@@ -210,17 +207,15 @@
         "operation": "appendOrUpdate",
         "documentId": {
           "__rl": true,
-          "value": "1L6nZ5vGPpzEuwWxhoDQXO3ZwY_08CYoHAjTBa1tlJIY",
+          "value": "YOUR_GOOGLE_SHEET_ID",
           "mode": "list",
-          "cachedResultName": "INVOICE PARSER AGENT",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1L6nZ5vGPpzEuwWxhoDQXO3ZwY_08CYoHAjTBa1tlJIY/edit?usp=drivesdk"
+          "cachedResultName": "INVOICE PARSER AGENT"
         },
         "sheetName": {
           "__rl": true,
           "value": "gid=0",
           "mode": "list",
-          "cachedResultName": "AGENT",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1L6nZ5vGPpzEuwWxhoDQXO3ZwY_08CYoHAjTBa1tlJIY/edit#gid=0"
+          "cachedResultName": "AGENT"
         },
         "columns": {
           "mappingMode": "defineBelow",
@@ -317,14 +312,14 @@
       "name": "Append or update row in sheet",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "Bod0OCMeISZKa1sk",
+          "id": "YOUR_CREDENTIAL_ID",
           "name": "Google Sheets account"
         }
       }
     },
     {
       "parameters": {
-        "sendTo": "sahsanali750@gmail.com",
+        "sendTo": "your-email@example.com",
         "subject": "={{ $json.output[0].content[0].text.subject }}",
         "emailType": "text",
         "message": "={{ $json.output[0].content[0].text.message }}",
@@ -343,7 +338,7 @@
       "webhookId": "916a4e75-5c98-4b5e-97f9-a90c9317b026",
       "credentials": {
         "gmailOAuth2": {
-          "id": "j4VFwBbXNWUQdzZu",
+          "id": "YOUR_CREDENTIAL_ID",
           "name": "Gmail account"
         }
       }
@@ -435,12 +430,6 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "6325128b-8174-4144-92f3-a940523c19cf",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "929e787c97cad7234d815b7b4252b0f678a6b00727d80ef9ef9aef6361ed547a"
-  },
   "nodeGroups": [],
-  "id": "r9MkQtghbB8QNX0S",
   "tags": []
 }
