@@ -1,0 +1,228 @@
+{
+  "name": "Instagram Leads Gen",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "INSTAGRAM Leads Scrapper",
+        "formDescription": "Get all the leads from instagram directly to airtable",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Who are you looking for?",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Location",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        32,
+        32
+      ],
+      "id": "6f996952-354a-4125-a919-2d1df15bb103",
+      "name": "On form submission",
+      "webhookId": "9ce026ca-bd0d-41a0-a802-3016fdd0f7e4"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/actors/apify~google-search-scraper/run-sync-get-dataset-items?token=YOUR_APIFY_API_KEY",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"focusOnPaidAds\": false,\n  \"forceExactMatch\": false,\n  \"includeIcons\": false,\n  \"includeUnfilteredResults\": false,\n  \"maxPagesPerQuery\": 1,\n  \"mobileResults\": false,\n  \"queries\": \"site:instagram.com + {{ $json['Who are you looking for?'] }} {{ $json.Location }}\",\n  \"resultsPerPage\": 25,\n  \"saveHtml\": false,\n  \"saveHtmlToKeyValueStore\": true\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -176,
+        32
+      ],
+      "id": "a75289e5-2794-4199-af66-340ab9cfd627",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        544,
+        32
+      ],
+      "id": "a090d810-501b-48aa-aa55-59f407cd70f5",
+      "name": "Wait",
+      "webhookId": "7d573871-7b20-482e-adac-0d7460b47751"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = [];\n\nfor (const item of $input.all()) {\n  const data = item.json;\n\n  const results = data.organicResults || [];\n\n  for (const result of results) {\n    output.push({\n      json: {\n        name: result.title\n          ? result.title.replace(/\\s*\\(@.*?\\)/, '').replace(/\\s*·.*$/, '').trim()\n          : null,\n\n        instagram_username: result.channelName || null,\n\n        instagram_url: result.url || null,\n\n        description: result.description || null,\n\n        followers: result.followersAmount || null,\n\n        position: result.position || null,\n\n        location: \"Lahore\",\n\n        source: \"Google Search\",\n\n        search_query: data.searchQuery?.term || null\n      }\n    });\n  }\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        32
+      ],
+      "id": "e80f64b4-156b-469f-90a9-f8507ca595f9",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Instagram Leads Gen"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.name }}",
+            "Username": "={{ $json.instagram_username }}",
+            "Instagram Url": "={{ $json.instagram_url }}",
+            "Description": "={{ $json.description }}",
+            "Followers": "={{ $json.followers }}"
+          },
+          "matchingColumns": [
+            "Name"
+          ],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Username",
+              "displayName": "Username",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Instagram Url",
+              "displayName": "Instagram Url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Description",
+              "displayName": "Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Followers",
+              "displayName": "Followers",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        336,
+        384
+      ],
+      "id": "1e06bb28-5c62-465f-9b9e-ee9911b7d4aa",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "nodeGroups": [],
+  "tags": []
+}
