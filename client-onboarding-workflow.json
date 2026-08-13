@@ -3,8 +3,8 @@
   "nodes": [
     {
       "parameters": {
-        "formTitle": "Welcome to NOXORA AI AGENCY",
-        "formDescription": "Kindly fill these below information to get started with NOXORA AI AGENCY",
+        "formTitle": "Welcome to Our AI Agency",
+        "formDescription": "Kindly fill these below information to get started",
         "formFields": {
           "values": [
             {
@@ -110,7 +110,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Write a personalized welcome email to client, Client Name is {{ $json['Full Name'] }}, Client Email is {{ $json.Email }} from KAMRAN AI AGENCY(An Agency that provides Tech Agentic Solution).\n\nClient is in the {{ $json.INDUSTRY }} industry and need services for {{ $json['REQUIRED SERVICE'] }} the service will start on {{ $json['Starting Date'] }} Client Company name is {{ $json['COMPANY NAME'] }}. The tone should be professional yet friendly. Include a mention that we are exited to work with them\n\nAlso let them know that they will be recieving a seprate email the terms of services agreement that they need to sign or simply respond to the email.\n\nNOXORA AI AGENCY OWNER NAME IS : SYED AHSAN ALI\nNOXORA AI AGENCY PHONE NUMBBER :+923054681628",
+        "text": "=Write a personalized welcome email to client, Client Name is {{ $json['Full Name'] }}, Client Email is {{ $json.Email }} from our AI Agency (An Agency that provides Tech Agentic Solutions).\n\nClient is in the {{ $json.INDUSTRY }} industry and need services for {{ $json['REQUIRED SERVICE'] }} the service will start on {{ $json['Starting Date'] }} Client Company name is {{ $json['COMPANY NAME'] }}. The tone should be professional yet friendly. Include a mention that we are excited to work with them\n\nAlso let them know that they will be receiving a separate email with the terms of service agreement that they need to sign or simply respond to the email.\n\nAGENCY OWNER NAME: [Your Name]\nAGENCY PHONE NUMBER: [Your Phone Number]",
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -143,8 +143,8 @@
       "name": "OpenAI Chat Model",
       "credentials": {
         "openAiApi": {
-          "id": "geIGkKH12CXyQHUW",
-          "name": "n8n free OpenAI API credits"
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "OpenAI account"
         }
       }
     },
@@ -183,8 +183,8 @@
       "name": "Message a model",
       "credentials": {
         "openAiApi": {
-          "id": "geIGkKH12CXyQHUW",
-          "name": "n8n free OpenAI API credits"
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "OpenAI account"
         }
       }
     },
@@ -209,7 +209,7 @@
       "webhookId": "b723f5dd-1525-4e31-b7a1-13be70c0265c",
       "credentials": {
         "gmailOAuth2": {
-          "id": "6UbNgpcE3KwNRY72",
+          "id": "YOUR_CREDENTIAL_ID",
           "name": "Gmail account"
         }
       }
@@ -217,7 +217,7 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "=Please generate a terms of service and contract document for client {{ $json['Full Name'] }} from NOXORA Ai Agency. The client operates in the {{ $json.INDUSTRY }} industry and requires service of {{ $json['REQUIRED SERVICE'] }} starting from {{ $json['Starting Date'] }} The contract should include:\n\n1. An introduction outlining the purpose of the contract.\n2. The scope of services.\n3. Payment terms.\n4. Obligation of both parties\n5. Terms and conditions, inlcuding liability clauses.\n6. A section for Client signature.\n\nService provider is Always: NOXORA Ai Agency\nNOXORA Ai AGENCY Onwer name is: SYED AHSAN ALI\nNOXORA AI Agency Phone number  :+923054681628\n\nGenerate contract with full detail by yourself cause we did'nt edit it, just return full clear contract with no other text",
+        "text": "=Please generate a terms of service and contract document for client {{ $json['Full Name'] }} from our AI Agency. The client operates in the {{ $json.INDUSTRY }} industry and requires service of {{ $json['REQUIRED SERVICE'] }} starting from {{ $json['Starting Date'] }} The contract should include:\n\n1. An introduction outlining the purpose of the contract.\n2. The scope of services.\n3. Payment terms.\n4. Obligation of both parties\n5. Terms and conditions, including liability clauses.\n6. A section for Client signature.\n\nService provider: [Your Agency Name]\nAgency owner name: [Your Name]\nAgency phone number: [Your Phone Number]\n\nGenerate contract with full detail by yourself since we didn't edit it, just return full clear contract with no other text",
         "options": {}
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -264,8 +264,8 @@
       "name": "Message a model1",
       "credentials": {
         "openAiApi": {
-          "id": "geIGkKH12CXyQHUW",
-          "name": "n8n free OpenAI API credits"
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "OpenAI account"
         }
       }
     },
@@ -290,7 +290,7 @@
       "webhookId": "5b55948e-920d-4ee0-b0d7-779c1eeb2c4b",
       "credentials": {
         "gmailOAuth2": {
-          "id": "6UbNgpcE3KwNRY72",
+          "id": "YOUR_CREDENTIAL_ID",
           "name": "Gmail account"
         }
       }
@@ -332,8 +332,8 @@
       "name": "OpenAI Chat Model1",
       "credentials": {
         "openAiApi": {
-          "id": "geIGkKH12CXyQHUW",
-          "name": "n8n free OpenAI API credits"
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "OpenAI account"
         }
       }
     }
@@ -445,12 +445,6 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "1c77f202-420a-4538-ab9f-9de72ab5b2d3",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "e2d017eaa482267b9e66bffe4a34a40c5219ad6c8c2d53f30ee2f951e263fdb2"
-  },
   "nodeGroups": [],
-  "id": "XU35yxZb8Hm3l6TQ",
   "tags": []
 }
