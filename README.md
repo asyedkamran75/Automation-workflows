@@ -55,7 +55,7 @@ Automatically detects new invoices in Google Drive, extracts data from PDFs, use
 ### 🗺️ Lead Generation Automation (Google Maps)
 An end-to-end lead generation pipeline: scrapes Google Maps via Apify, extracts websites and domains, enriches leads with emails through an HTTP API, cleans the data, and stores everything automatically in Google Sheets.
 
-**File:** `lead-gen-maps.json`
+**File:** `Lead Gen.json`
 **Tech stack:** n8n, Google Sheets Trigger, Apify, HTTP API (email enrichment), Edit Fields
 
 ---
@@ -71,7 +71,7 @@ Fetches new job listings daily, compares each one against a resume using AI, and
 ### ✍️ AI-Powered LinkedIn Content Automation (Human-in-the-Loop)
 A content workflow where AI and human decision-making work together: takes a content request via form, generates a LinkedIn post with AI, researches supporting info with Tavily, sends it for human approval, routes declined posts to a revision agent, and only publishes to LinkedIn after approval.
 
-**File:** `linkedin-content-automation.json`
+**File:** `Linkedin Post.json`
 **Tech stack:** n8n, OpenAI, Tavily, Human-in-the-loop approval, LinkedIn API
 
 ---
