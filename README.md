@@ -82,3 +82,13 @@ Turns a simple form submission (target location + business type) into a structur
 
 **File:** `instagram-lead-gen.json`
 **Tech stack:** n8n, Apify, JavaScript (Code node), Google Sheets
+
+
+---
+---
+
+## 🦷 AI Dental Receptionist
+
+A practical case study simulating what a real dental clinic could need from an AI receptionist — handling bookings end-to-end instead of just answering FAQs. Validates the clinic's working hours and checks real Google Calendar availability before confirming any appointment, preventing the AI from booking a slot that looks open but isn't actually valid.
+
+**File:** `dental-receptionist.json` **Tech stack:** n8n, OpenAI, Pinecone (RAG), Google Calendar, Google Sheets
