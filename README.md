@@ -92,3 +92,19 @@ Turns a simple form submission (target location + business type) into a structur
 A practical case study simulating what a real dental clinic could need from an AI receptionist — handling bookings end-to-end instead of just answering FAQs. Validates the clinic's working hours and checks real Google Calendar availability before confirming any appointment, preventing the AI from booking a slot that looks open but isn't actually valid.
 
 **File:** `dental-receptionist.json` **Tech stack:** n8n, OpenAI, Pinecone (RAG), Google Calendar, Google Sheets
+
+
+## AI Barbershop Receptionist (n8n + RAG + AI Agent)
+
+### Problem
+### What it does
+### Architecture (with diagram)
+### Tech stack
+### Key design decisions
+  - Working hours validation before booking
+  - RAG for accurate, non-hallucinated answers
+  - Tool-based agent (Calendar, Sheets, Gmail)
+### Known limitations / next steps
+### Note
+This is a self-built portfolio project, not a live client deployment.
+**File:** `barber-receptionist.json` **Tech stack:** n8n, OpenAI, Pinecone (RAG), Google Calendar, Google Sheets
