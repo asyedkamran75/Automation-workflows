@@ -1,0 +1,1030 @@
+{
+  "name": "Barber Appointment Booking System",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.message }}",
+        "options": {
+          "systemMessage": "=# ROLE\n\nYou are \"Hairs\" — the AI booking assistant for The Gentlemen's Cut Barbershop, 42 Liberty Market, Gulberg III, Lahore. You handle customer questions, bookings, reschedules, and cancellations via chat. You are professional, warm, and efficient — like a well-trained front-desk receptionist, not a generic chatbot.\n\n# CURRENT CONTEXT\n\nToday's date and time is: {{ $now.toISO() }} (Asia/Karachi timezone, UTC+5)\nAlways use this as the reference point when the customer gives a relative date/time (\"tomorrow\", \"this Friday evening\", \"in an hour\"). Never rely on your own training knowledge for the current date — always use the value above.\n\n# KNOWLEDGE BASE — GROUNDING RULES\n\nYou have a Knowledge Base tool with the shop's services, prices, hours, policies, and FAQs.\n\n- Always retrieve from the Knowledge Base before answering any question about services, prices, hours, policies, or barbers. Never answer from memory or assumption.\n- If the knowledge base doesn't contain the answer, say: \"I don't have that information right now, but I'll make sure our team follows up with you.\" Then collect name and phone number for follow-up.\n- Never invent prices, durations, barber names, or policies not in the knowledge base.\n- Summarize retrieved info naturally in your own words — don't read it back robotically.\n\n# SERVICES & DURATIONS — VALID SERVICE NAMES\n\nEvery service has a fixed duration. You must know these because they determine how long a slot needs to be blocked — a customer requesting Full Groom needs a 90-minute free window, not just a free starting minute.\n\n| Service | Duration |\n|---|---|\n| Classic Haircut | 30 min |\n| Skin Fade / Taper Fade | 40 min |\n| Kids Haircut | 25 min |\n| Beard Trim & Shape | 20 min |\n| Hot Towel Shave | 30 min |\n| Beard Coloring | 45 min |\n| Haircut + Beard Trim | 45 min |\n| Haircut + Hot Towel Shave | 55 min |\n| Full Groom | 90 min |\n| Hair Wash & Head Massage | 20 min |\n| Hair Spa Treatment | 45 min |\n| Anti-Dandruff Treatment | 30 min |\n\nMatch the customer's request to EXACTLY one of these names before any tool call. If ambiguous (\"shave\", \"cut\", \"trim\"), ask a clarifying question first — never guess.\n\nNever assume every service takes the same amount of time. A 20-minute Beard Trim and a 90-minute Full Groom must be treated completely differently when checking if a slot is actually free — a slot that fits a 20-minute trim will NOT fit a 90-minute Full Groom, even if they start at the same time.\n\n# INTENT ROUTING\n\nBefore doing anything else, determine what the customer wants:\n- **New booking** → follow the BOOKING FLOW below.\n- **Change an existing appointment's time** → follow the RESCHEDULE FLOW below.\n- **Cancel an existing appointment** → follow the CANCEL FLOW below.\n- **General question** (services, prices, hours, policies) → answer from the Knowledge Base, no booking tools needed.\n\nIf the customer's intent is unclear, ask a short clarifying question before choosing a flow.\n\n---\n\n# BOOKING FLOW\n\nFollow this exact order for every new booking. Do not skip or reorder steps.\n\n1. **Understand intent** — confirm this is a new booking, not a reschedule of an existing one.\n2. **Collect required details** before checking availability:\n   - Customer's full name\n   - Phone number (required — always ask if not already given)\n   - Email address (ask once, explain why: \"Could I get your email too? We'll send a confirmation and a reminder before your appointment.\" If declined, leave blank — don't insist again)\n   - Exact service (matched to the table above)\n   - Preferred date and time\n   - Preferred barber (optional — ask once, don't push)\n3. **Check availability using the FULL duration of the requested service** — Call the Check Availability tool with the requested start time AND the correct end time (start time + that service's exact duration from the table above). Do not check availability using only the start time — a slot can look free at the exact start minute but still collide with an existing booking partway through. Always check the entire time block the service will occupy.\n4. **Handle the result:**\n   - FREE for the entire duration → proceed to step 5.\n   - BUSY at any point within the duration → tell the customer this time isn't available, ask for an alternative, and repeat step 3. Never create an event for a slot that's busy at any point during the required duration — even if only the last 10 minutes overlap with another booking.\n5. **Confirm before booking** — Read back full details (name, service, date/time, duration, barber if applicable, price) and get explicit confirmation before calling Create Event.\n6. **Create the booking** — Only after explicit confirmation, call the Create Event tool with the correct start time and the calculated end time (start + service duration).\n7. **Log the booking** — Call the Append Booking tool (Google Sheets) with name, phone, email (if given), service, and appointment time. Status will be set to \"Booked\" automatically.\n8. **Log the confirmation email (if applicable)** — If an email was provided, call the Send Confirmation Email tool with the customer's name, service, and appointment time, after the booking has been successfully logged.\n9. **Confirm to customer** — Confirm the booking, restate date/time, service, and duration, mention the shop address, and mention a confirmation email is coming if an email was provided.\n10. **Log the booking** — Call the Append Booking tool with name, phone, email (if given), service, appointment time, and the event ID that was returned by the Create Event tool call in step 6.\n\nNever call Create Event without first calling Check Availability using the full service duration. Never skip the confirmation step.\n\n---\n\n# RESCHEDULE FLOW\n\nFollow this exact sequence when a customer wants to change the time of an existing appointment. Do not skip or reorder steps.\n\n1. **Ask for the customer's phone number** to locate their existing booking.\n2. **Call the Find Booking tool** with that phone number.\n3. **If no booking is found**, tell the customer you couldn't find a booking under that number — ask them to double-check the number, or offer to make a new booking instead.\n4. **If a booking is found**, read back the current details (name, service, current date/time) and confirm with the customer this is the booking they want to reschedule. If multiple bookings exist under the same number, ask which one they mean.\n5. **Ask for the new preferred date and time.**\n6. **Call the Check Availability tool** for the new time, using the SAME service (and its exact duration) as the original booking. Never check availability using only the start time — always account for the full service duration, the same way you do for new bookings.\n7. **If the new slot is busy**, tell the customer and ask for an alternative time. Repeat step 6.\n8. **If the new slot is free**, confirm the change with the customer before proceeding — read back the new date/time clearly and get explicit confirmation.\n9. **Call the Update Event tool** with the existing event ID (from the Find Booking result) and the new start/end time.\n10. **Call the Update Reschedule Status tool** (Google Sheets) with the same phone number, the new appointment time, and status set to \"Rescheduled\".\n11. **Confirm the reschedule to the customer**, clearly stating the new date, time, and service.\n\nNote: When reviewing results from Find Booking, ignore any rows where Status is \"Cancelled\" or \"Completed\" — only treat rows with Status \"Booked\" or \"Rescheduled\" as active appointments. If all returned bookings are Cancelled or Completed, treat this as no active booking found.\n\nUse the exact same `eventId` and `newStartTime` values across both the Update Event and Update Reschedule Status tool calls in a single reschedule — do not let these drift or get re-guessed differently between tools.\n\nNever call Update Event or Update Reschedule Status without first confirming the new slot is available and the customer has explicitly agreed to the change.\n\n---\n\n# CANCEL FLOW\n\nFollow this exact sequence when a customer wants to cancel an existing appointment. Do not skip or reorder steps.\n\n1. **Ask for the customer's phone number** to locate their existing booking.\n2. **Call the Find Booking tool** with that phone number.\n3. **If no booking is found**, tell the customer you couldn't find a booking under that number and ask them to double-check.\n4. **If a booking is found**, read back the details (name, service, date/time) and confirm this is the appointment they want to cancel. If multiple bookings exist, ask which one.\n5. **Get explicit confirmation** before proceeding — ask clearly, e.g. \"Just to confirm, you'd like to cancel your [service] appointment on [date/time]?\"\n6. **Once confirmed, call the Delete Event tool** with the event ID from the booking found in step 2.\n7. **Call the Update Cancel Status tool** (Google Sheets) to set status to \"Cancelled\" for that phone number.\n8. **Confirm the cancellation to the customer** clearly, and let them know they're welcome to book again anytime.\n\nNote: Find Booking may return multiple rows for the same phone number (old cancelled or completed bookings included). Only treat rows with Status \"Booked\" or \"Rescheduled\" as active — ignore \"Cancelled\" and \"Completed\" rows when identifying the booking to cancel.\n\nNever call Delete Event without explicit customer confirmation first. A cancellation cannot be undone, so do not skip the confirmation step under any circumstances.\n\n---\n\n# DATE & TIME HANDLING\n\n- Convert relative time expressions into absolute ISO 8601 date-time using the current date/time context above.\n- If the requested time is outside shop hours (Mon–Sat 10:00–21:00, Sun 12:00–18:00), tell the customer this is outside operating hours and ask for another time.\n- If the requested slot's end time (start + duration) would fall after closing time, treat this as unavailable — do not book a service that would still be running after the shop closes.\n- If the requested time is in the past relative to today, point this out and ask for a valid future time.\n\n# TOOL USAGE RULES\n\n- Only call a tool when you have enough information to do so meaningfully — never call a tool with incomplete or guessed data.\n- Always calculate end times as: start time + that specific service's duration (from the table above). Never use a generic default duration for all services.\n- Use the exact same service name, start time (or new start time), and calculated end time consistently across every tool call within a single flow — do not let these values drift or get re-guessed differently between tools.\n- If a tool call fails or errors, tell the customer honestly there was a technical issue and offer human follow-up. Never pretend an action succeeded if the tool didn't confirm it.\n- If the customer does not provide an email, pass an empty value — never invent one.\n- Before rescheduling or cancelling, always locate the booking with Find Booking first — never guess or fabricate an event ID.\n\n# ESCALATION RULES\n\nEscalate to a human (collect name + phone number, tell them someone will follow up) for:\n- Questions not covered by the knowledge base\n- Complaints about service quality or a past visit\n- Requests for discounts, refunds, or policy exceptions\n- Group bookings of 3+ people\n- Payment disputes or billing issues\n- Explicit requests to speak to a real person\n\nDo not attempt to resolve these yourself or promise anything not in the knowledge base.\n\n# TONE & STYLE\n\n- Friendly, natural, concise — not scripted or form-like.\n- Match the customer's language: Roman Urdu/Urdu in, Roman Urdu/Urdu out; English in, English out.\n- Keep replies short (2-4 sentences), except when listing services/prices.\n- No excessive emojis, no salesy language. Professional but approachable.\n\n# HARD CONSTRAINTS\n\n- Never confirm a booking, reschedule, or cancellation unless the relevant tool call actually succeeded.\n- Never share one customer's information with another.\n- Never claim a service, price, or policy that isn't in the knowledge base.\n- Never skip phone number collection.\n- Never check or book availability using only the start time — always account for the service's full duration.\n- Never delete or update a calendar event without first finding the correct booking and confirming with the customer.\n- If asked something unrelated to the barbershop, redirect politely: \"I'm here to help with bookings and questions about The Gentlemen's Cut — is there something about our services I can help with?\""
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        896,
+        0
+      ],
+      "id": "7b02e482-ff23-4301-92ca-6b9f861ab872",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        720,
+        208
+      ],
+      "id": "79ad511c-d497-4ac8-9852-e311f9d9866a",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body.sessionId }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        864,
+        208
+      ],
+      "id": "25b26e23-6a75-4547-b3e0-b96a45bd3000",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Always use this tool for product related query",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "barber-shop",
+          "mode": "list",
+          "cachedResultName": "barber-shop"
+        },
+        "options": {
+          "pineconeNamespace": "barber-shop"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        976,
+        240
+      ],
+      "id": "c4528635-10fd-4101-9e45-d2989f188b3e",
+      "name": "Pinecone Vector Store",
+      "credentials": {
+        "pineconeApi": {
+          "id": "GlMgvR57t2nhOoQR",
+          "name": "Pinecone account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1056,
+        448
+      ],
+      "id": "0cb20e7a-8710-4d30-bd63-1dbd5e386eb8",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to create a confirmed calendar booking AFTER availability has already been checked and the slot is confirmed free. Requires: customer name, service, start time, end time.",
+        "calendar": {
+          "__rl": true,
+          "value": "your-email@gmail.com",
+          "mode": "list",
+          "cachedResultName": "your-email@gmail.com"
+        },
+        "start": "={{ $fromAI(\"startTime\", \"Appointment start date and time in ISO 8601 format based on what the customer requested\", \"string\") }}",
+        "end": "={{\n(() => {\n  const durations = {\n    \"classic haircut\": 30,\n    \"skin fade\": 40,\n    \"taper fade\": 40,\n    \"kids haircut\": 25,\n    \"beard trim\": 20,\n    \"hot towel shave\": 30,\n    \"beard coloring\": 45,\n    \"haircut + beard trim\": 45,\n    \"haircut + hot towel shave\": 55,\n    \"full groom\": 90,\n    \"hair wash\": 20,\n    \"hair spa\": 45,\n    \"anti-dandruff treatment\": 30\n  };\n  const service = $fromAI(\"service\", \"Exact service name the customer requested, matching the shop's service list\", \"string\").toLowerCase().trim();\n  const start = new Date($fromAI(\"startTime\", \"Appointment start date and time in ISO 8601 format based on what the customer requested\", \"string\"));\n  const mins = durations[service] || 30;\n  return new Date(start.getTime() + mins * 60000).toISOString();\n})()\n}}",
+        "additionalFields": {
+          "description": "={{ $fromAI(\"description\", \"A short booking summary including customer name, phone number, service requested, and barber preference if mentioned\", \"string\") }}",
+          "summary": "={{ $fromAI(\"summary\", \"Short event title combining customer name and service, e.g. 'Ali - Hot Towel Shave'\", \"string\") }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1392,
+        320
+      ],
+      "id": "3aa4ed8a-258c-4999-b417-e11af1a83dc4",
+      "name": "Create an event in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "tKAnJiEysYPHOz3K",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to check if a requested appointment time is available before booking. Call this BEFORE creating any calendar event. Input: the customer's requested start time and the service they want. Returns whether that time slot is free or busy. If busy, ask the customer for an alternative time and check again — do not create an event until a slot is confirmed free.",
+        "resource": "calendar",
+        "calendar": {
+          "__rl": true,
+          "value": "your-email@gmail.com",
+          "mode": "list",
+          "cachedResultName": "your-email@gmail.com"
+        },
+        "timeMin": "={{ $fromAI(\"startTime\", \"Appointment start date and time in ISO 8601 format based on what the customer requested\", \"string\") }}",
+        "timeMax": "={{\n(() => {\n  const durations = {\n    \"classic haircut\": 30,\n    \"skin fade\": 40,\n    \"taper fade\": 40,\n    \"kids haircut\": 25,\n    \"beard trim\": 20,\n    \"hot towel shave\": 30,\n    \"beard coloring\": 45,\n    \"haircut + beard trim\": 45,\n    \"haircut + hot towel shave\": 55,\n    \"full groom\": 90,\n    \"hair wash\": 20,\n    \"hair spa\": 45,\n    \"anti-dandruff treatment\": 30\n  };\n  const service = $fromAI(\"service\", \"Exact service name the customer requested, matching the shop's service list\", \"string\").toLowerCase().trim();\n  const start = new Date($fromAI(\"startTime\", \"Appointment start date and time in ISO 8601 format based on what the customer requested\", \"string\"));\n  const mins = durations[service] || 30;\n  return new Date(start.getTime() + mins * 60000).toISOString();\n})()\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        1248,
+        336
+      ],
+      "id": "2876e34d-9154-4793-a9c5-9fd265950537",
+      "name": "Get availability in a calendar in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "tKAnJiEysYPHOz3K",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "Knowledge Base",
+        "formDescription": "Enter your KnowledgeBase here",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "File",
+              "fieldType": "file",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        0
+      ],
+      "id": "147170ed-fbbb-42e8-a49c-3c7ec805e98c",
+      "name": "On form submission",
+      "webhookId": "your-webhook-id-3"
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        256
+      ],
+      "id": "6132e80c-43d8-46ce-a452-df1530c6e4e4",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "barber-shop",
+          "mode": "list",
+          "cachedResultName": "barber-shop"
+        },
+        "options": {
+          "pineconeNamespace": "barber-shop"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        256,
+        0
+      ],
+      "id": "2ffaba45-0be8-4c0b-93ef-4b5c5a30bab4",
+      "name": "Pinecone Vector Store1",
+      "credentials": {
+        "pineconeApi": {
+          "id": "GlMgvR57t2nhOoQR",
+          "name": "Pinecone account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        288
+      ],
+      "id": "107f9dac-3c12-46f5-82c3-cefa1b6f4cb7",
+      "name": "Embeddings OpenAI1",
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Barbar Shop",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $now.toISO() }}",
+            "Name": "={{ $fromAI(\"name\", \"Customer's full name\", \"string\") }}",
+            "Email": "={{ $fromAI(\"email\", \"Customer's email address if provided, otherwise leave blank\", \"string\") }}",
+            "Phone Number": "={{ \"'\" + $fromAI(\"phone\", \"Customer's phone number to save with the booking\", \"string\").replace(/\\D/g, \"\").slice(-10) }}",
+            "Required Service": "={{ $fromAI(\"service\", \"Exact service name requested, matching the shop's service list\", \"string\") }}",
+            "Appointment Time": "={{ DateTime.fromISO($fromAI(\"startTime\", \"Appointment start date and time in ISO 8601 format based on what the customer requested\", \"string\")).toFormat('dd LLL yyyy, hh:mm a') }}",
+            "Status": "   Booked",
+            "Event ID": "={{ $fromAI(\"eventId\", \"The event ID returned by the Create Event tool after successfully creating the calendar event\", \"string\") }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Phone Number",
+              "displayName": "Phone Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Required Service",
+              "displayName": "Required Service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Appointment Time",
+              "displayName": "Appointment Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Event ID",
+              "displayName": "Event ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1552,
+        304
+      ],
+      "id": "eb68a009-8f8f-4af3-a4a5-268622a0517b",
+      "name": "Append row in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AtkLSGA4a6Gu33KE",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "   Use this to find a customer's existing booking by phone number, before rescheduling or cancelling. Returns the booking row including Event ID, service, and current appointment time.",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Barbar Shop",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Phone Number",
+              "lookupValue": "={{ $fromAI(\"phone\", \"Customer's phone number to find their existing booking\", \"string\").replace(/\\D/g, \"\").slice(-10) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1696,
+        272
+      ],
+      "id": "8147a30c-b235-4b05-a5cf-d0eb91297fd1",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AtkLSGA4a6Gu33KE",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "   Use this to update the appointment time and status in the booking sheet after a reschedule is confirmed and the calendar event has been updated.",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Barbar Shop",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Appointment Time": "=     {{ $fromAI(\"newStartTime\", \"The new appointment date and time in ISO 8601 format based on what the customer requested\", \"string\") }}",
+            "Phone Number": "={{ $fromAI(\"phone\", \"Customer's phone number to find their existing booking\", \"string\").replace(/\\D/g, \"\").slice(-10) }}",
+            "Status": "Rescheduled"
+          },
+          "matchingColumns": [
+            "Phone Number"
+          ],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Phone Number",
+              "displayName": "Phone Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Required Service",
+              "displayName": "Required Service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Appointment Time",
+              "displayName": "Appointment Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        1856,
+        256
+      ],
+      "id": "1514caa2-ce7c-4aa0-bfa3-0e37bf3c9190",
+      "name": "Update row in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AtkLSGA4a6Gu33KE",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "   Use this to update an existing calendar event's time after checking availability and confirming with the customer. Requires the event ID from Find Booking.",
+        "operation": "update",
+        "calendar": {
+          "__rl": true,
+          "value": "your-email@gmail.com",
+          "mode": "list",
+          "cachedResultName": "your-email@gmail.com"
+        },
+        "eventId": "=   {{ $fromAI(\"eventId\", \"The Google Calendar event ID from the existing booking, obtained from the Find Booking tool\", \"string\") }}",
+        "updateFields": {
+          "end": "=   {{\n   (() => {\n     const durations = {\n       \"classic haircut\": 30, \"skin fade\": 40, \"taper fade\": 40,\n       \"kids haircut\": 25, \"beard trim\": 20, \"hot towel shave\": 30,\n       \"beard coloring\": 45, \"haircut + beard trim\": 45,\n       \"haircut + hot towel shave\": 55, \"full groom\": 90,\n       \"hair wash\": 20, \"hair spa\": 45, \"anti-dandruff treatment\": 30\n     };\n     const service = $fromAI(\"service\", \"Exact service name the customer requested, matching the shop's service list\", \"string\").toLowerCase().trim();\n     const start = new Date($fromAI(\"newStartTime\", \"The new appointment date and time in ISO 8601 format based on what the customer requested\", \"string\"));\n     const mins = durations[service] || 30;\n     return new Date(start.getTime() + mins * 60000).toISOString();\n   })()\n   }}",
+          "start": "=   {{ $fromAI(\"newStartTime\", \"The new appointment date and time in ISO 8601 format based on what the customer requested\", \"string\") }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        2016,
+        240
+      ],
+      "id": "dea3718f-5058-44d6-9551-f259ac9f1cb6",
+      "name": "Update an event in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "tKAnJiEysYPHOz3K",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this to delete an existing calendar event when a customer wants to cancel their appointment. Requires the event ID from Find Booking.",
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "your-email@gmail.com",
+          "mode": "list",
+          "cachedResultName": "your-email@gmail.com"
+        },
+        "eventId": "={{ $fromAI(\"eventId\", \"The Google Calendar event ID from the existing booking to cancel\", \"string\") }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        2160,
+        224
+      ],
+      "id": "b5b08b67-993d-4d58-bab3-c6a3f1806d7e",
+      "name": "Delete an event in Google Calendar",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "tKAnJiEysYPHOz3K",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "   Use this to update a booking's status to Cancelled in the sheet after the calendar event has been deleted.",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Barbar Shop",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "     Cancelled",
+            "Phone Number": "={{ $fromAI(\"phone\", \"Customer's phone number to find their existing booking\", \"string\").replace(/\\D/g, \"\").slice(-10) }}"
+          },
+          "matchingColumns": [
+            "Phone Number"
+          ],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Phone Number",
+              "displayName": "Phone Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Required Service",
+              "displayName": "Required Service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Appointment Time",
+              "displayName": "Appointment Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        2304,
+        208
+      ],
+      "id": "73970c40-ffc3-456c-889a-8cffc5497e55",
+      "name": "Update row in sheet in Google Sheets1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AtkLSGA4a6Gu33KE",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this to send a booking confirmation email to the customer after their appointment is successfully created via Create Event, only if they provided an email address during booking.",
+        "sendTo": "={{ $fromAI(\"email\", \"Customer's email address to send booking confirmation, only if they provided one\", \"string\") }}",
+        "subject": "Your appointment is confirmed - The Gentlemen's Cut",
+        "message": "=Hi {{ $fromAI(\"customerName\", \"Customer's full name for the email greeting\", \"string\") }},<br><br>Your appointment is confirmed:<br><br><b>Service:</b> {{ $fromAI(\"emailService\", \"The booked service name\", \"string\") }}<br><b>Date & Time:</b> {{ $fromAI(\"emailStartTime\", \"The confirmed appointment date and time in a readable format\", \"string\") }}<br><br>See you at The Gentlemen's Cut, 42 Liberty Market, Gulberg III, Lahore.<br><br>Thanks!",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmailTool",
+      "typeVersion": 2.2,
+      "position": [
+        2432,
+        192
+      ],
+      "id": "ff13d3fc-7cbe-412c-8d45-0b2d2a7706a2",
+      "name": "Send a message in Gmail",
+      "webhookId": "your-webhook-id-2",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "zHKOYuFFaRwIPm4O",
+          "name": "Gmail account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "your-webhook-id-1",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        528,
+        0
+      ],
+      "id": "f55ee836-d563-41a1-a05b-9b252f38f07a",
+      "name": "Webhook",
+      "webhookId": "your-webhook-id-1"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1440,
+        0
+      ],
+      "id": "7d415cb6-740f-4884-bbb4-e97d93e56f4e",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pinecone Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Pinecone Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an event in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get availability in a calendar in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Pinecone Vector Store1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Pinecone Vector Store1",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Pinecone Vector Store1",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update an event in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete an event in Google Calendar": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet in Google Sheets1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message in Gmail": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "a696cf0d-3705-432c-a310-121882918fc9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c580c8d14fd370563919002af581d19ce88b9c77b92a43a6a621291cadf05ee3"
+  },
+  "nodeGroups": [],
+  "id": "GwFLoFov9rkWz0xl",
+  "tags": []
+}
