@@ -108,3 +108,10 @@ A practical case study simulating what a real dental clinic could need from an A
 ### Note
 This is a self-built portfolio project, not a live client deployment.
 **File:** `barber-receptionist.json` **Tech stack:** n8n, OpenAI, Pinecone (RAG), Google Calendar, Google Sheets
+
+
+Lead Generator & AI-Drafted Outreach Message
+
+n8n workflow that scrapes local business leads (Apify Google Maps), scores each one as high/medium/low opportunity using AI based on website presence and reviews, drafts a personalized cold outreach message for high-opportunity leads, and logs everything to Google Sheets.
+**File:** `Lead-generator-drafted-message.json`
+Stack: n8n · Apify · OpenAI (GPT-4.1) · Google Sheets
