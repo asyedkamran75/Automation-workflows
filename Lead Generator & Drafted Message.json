@@ -1,0 +1,2134 @@
+{
+  "name": "Lead Generator & Drafted Message",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Leads Generator",
+        "formDescription": "What are you looking for",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "City",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Niche",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Number of Leads",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -560,
+        -32
+      ],
+      "id": "c056d127-7fa1-4455-a42e-eaee0b49cb2a",
+      "name": "On form submission",
+      "webhookId": "a73f5919-97ac-4111-bd25-446f8343c047"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.apify.com/v2/acts/compass~crawler-google-places/run-sync-get-dataset-items?format=json&clean=true&limit=20",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "Application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n\n    \"language\": \"en\",\n    \"maxCrawledPlacesPerSearch\": {{ $json['Number of Leads'] }},\n    \"scrapeTableReservationProvider\": false,\n    \"searchStringsArray\": [\n        \"{{ $json.Niche }} in {{ $json.City }}\"\n    ],\n    \"skipClosedPlaces\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -336,
+        -32
+      ],
+      "id": "229fb751-33f1-4f47-8d3c-c26f44aeda89",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "eh6Z86OhR8EDI16H",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  const place = item.json;\n\n  results.push({\n    json: {\n      name: place.title || \"N/A\",\n      address: place.address || \"N/A\",\n      rating: place.totalScore ?? \"N/A\",\n      review_count: place.reviewsCount ?? 0,\n      has_website: place.website ? true : false,\n      website: place.website || \"No website\"\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -112,
+        -32
+      ],
+      "id": "fb2ac199-a1bf-4b23-863a-72288393cf5f",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        112,
+        -32
+      ],
+      "id": "aae57509-fb97-48ee-b726-c02d7d64844c",
+      "name": "Process Leads One By One"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are a senior sales strategist for a web design and digital marketing agency. You specialize in identifying local businesses with clear, provable growth gaps and writing outreach that gets replies — not by pressuring, but by being specific, credible, and genuinely useful.\n\nBusiness details:\nName: {{ $json.name }}\nAddress: {{ $json.address }}\nRating: {{ $json.rating }}\nReview Count: {{ $json.review_count }}\nHas Website: {{ $json.has_website }}\nWebsite: {{ $json.website }}\n\nTask:\n\n1. Score this business as exactly one of: \"high opportunity\", \"medium opportunity\", \"low opportunity\".\n   - No website at all is a strong high-opportunity signal — this business is likely losing customers to competitors who show up in local search.\n   - A rating below 3.5 with a meaningful review count (10+) is medium-to-high opportunity — reputation management or a better online presence could help.\n   - A good website plus a rating of 4.3+ is low opportunity.\n\n2. Only if the score is \"high opportunity\", write a short (3-4 sentence) personalized cold outreach message. This message must:\n   - Open with a specific, credible observation about THIS business (its name, rating, review count, or missing website) — not a generic greeting.\n   - State one concrete consequence of the gap (e.g. \"customers searching '[niche] near me' are likely finding your competitors first\" or \"with X reviews and no website, you may be losing bookings to businesses that show up online\").\n   - Offer a clear, low-friction next step (e.g. a free 10-minute audit, a quick call, a sample mockup) — never a hard sell.\n   - Sound like a helpful expert reaching out with a genuine observation, not a salesperson. No exclamation marks, no \"amazing opportunity,\" no artificial urgency, no flattery that isn't earned by the data.\n   \n   If the score is not \"high opportunity\", set message to an empty string.\n\n3. Keep the tone confident and consultative — as if written by someone who has helped dozens of similar local businesses, not someone begging for a reply."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "schema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"score\": {\n      \"type\": \"string\",\n      \"enum\": [\"high opportunity\", \"medium opportunity\", \"low opportunity\"]\n    },\n    \"message\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\"score\", \"message\"],\n  \"additionalProperties\": false\n}"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        336,
+        64
+      ],
+      "id": "d0a77b02-d794-46f8-b0ba-648fb9fba68e",
+      "name": "AI Score and Draft Message",
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiOutput = $input.first().json;\nconst parsed = aiOutput.output[0].content[0].text;\n\n// original lead data wapas lao\nconst originalLead = $('Process Leads One By One').item.json;\n\nreturn [{\n  json: {\n    name: originalLead.name,\n    address: originalLead.address,\n    rating: originalLead.rating,\n    review_count: originalLead.review_count,\n    has_website: originalLead.has_website,\n    website: originalLead.website,\n    score: parsed.score,\n    message: parsed.message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        64
+      ],
+      "id": "ab7a0530-17ee-4820-b2f8-c8a95fb07c92",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1tWe0PHgCzLZ7zARtQmN0RPqAUivkGeg1jLxoeEVbEb4",
+          "mode": "list",
+          "cachedResultName": "Lead Generator & Drafted Message",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1tWe0PHgCzLZ7zARtQmN0RPqAUivkGeg1jLxoeEVbEb4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1tWe0PHgCzLZ7zARtQmN0RPqAUivkGeg1jLxoeEVbEb4/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.name }}",
+            "Address": "={{ $json.address }}",
+            "Rating": "={{ $json.rating }}",
+            "Review Count": "={{ $json.review_count }}",
+            "Has Website": "={{ $json.has_website }}",
+            "Website": "={{ $json.website }}",
+            "Score": "={{ $json.score }}",
+            "Drafted Message": "={{ $json.message }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Address",
+              "displayName": "Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Rating",
+              "displayName": "Rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Review Count",
+              "displayName": "Review Count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Has Website",
+              "displayName": "Has Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Score",
+              "displayName": "Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Drafted Message",
+              "displayName": "Drafted Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        928,
+        64
+      ],
+      "id": "7ac8816a-f888-42f4-aa92-e284a2ae6c9c",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FVgXyIOLiW6O8OlH",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        336,
+        -128
+      ],
+      "id": "3e1c6418-dcd3-4f63-8be5-47b3baed7307",
+      "name": "No Operation, do nothing"
+    }
+  ],
+  "pinData": {
+    "On form submission": [
+      {
+        "json": {
+          "City": "New York",
+          "Niche": "Barber shop",
+          "Number of Leads": "15",
+          "submittedAt": "2026-09-16T14:49:13.034+05:00",
+          "formMode": "test"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "HTTP Request": [
+      {
+        "json": {
+          "title": "Barber on Pearl",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "57a Pearl St, Brooklyn, NY 11201",
+          "neighborhood": "Dumbo",
+          "street": "57a Pearl St",
+          "city": "Brooklyn",
+          "postalCode": "11201",
+          "state": "New York",
+          "countryCode": "US",
+          "website": "http://barberonpearl.com/",
+          "phone": "(718) 855-3090",
+          "phoneUnformatted": "+17188553090",
+          "claimThisBusiness": false,
+          "location": {
+            "lat": 40.7029244,
+            "lng": -73.9875004
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 4.7,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJ_R7JxzNawokRyrCzyphceW8",
+          "categories": [
+            "Barber shop",
+            "Hair salon"
+          ],
+          "fid": "0x89c25a33c7c91efd:0x6f795c98cab3b0ca",
+          "cid": "8032553221697548490",
+          "reviewsCount": 385,
+          "reviewsDistribution": {
+            "oneStar": 17,
+            "twoStar": 6,
+            "threeStar": 0,
+            "fourStar": 18,
+            "fiveStar": 344
+          },
+          "imagesCount": 62,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.201Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "9 AM to 6 PM"
+            },
+            {
+              "day": "Sunday",
+              "hours": "9 AM to 5 PM"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "additionalInfo": {
+            "Accessibility": [
+              {
+                "Wheelchair accessible entrance": false
+              },
+              {
+                "Wheelchair accessible parking lot": false
+              }
+            ]
+          },
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=Barber%20on%20Pearl&query_place_id=ChIJ_R7JxzNawokRyrCzyphceW8",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 1,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWlVJNhBMGcLJ1E_yc44rF8E0b2luJfiK8fFaThIvRMLNsbSPujsRJXf61xOE6b1csTbHEK8YclV4Ta5uHlbKTtsvWDpW9XdarWsGdVxF-O3R9q4ilcZ9tFWRxTU5H_p-OwoGu34=w426-h240-k-no",
+          "kgmid": "/g/1tp0911y",
+          "businessProfileId": "9110420255883595446"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      },
+      {
+        "json": {
+          "title": "Skullfade Barbers",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "105 Nassau St, New York, NY 10038",
+          "neighborhood": "Manhattan",
+          "street": "105 Nassau St",
+          "city": "New York",
+          "postalCode": "10038",
+          "state": "New York",
+          "countryCode": "US",
+          "website": "http://skullfadebarbers.com/",
+          "phone": "(212) 548-6186",
+          "phoneUnformatted": "+12125486186",
+          "claimThisBusiness": false,
+          "location": {
+            "lat": 40.7107127,
+            "lng": -74.0073939
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 4.7,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJm9jxVqFbwokRcLKCg0PxaG8",
+          "categories": [
+            "Barber shop"
+          ],
+          "fid": "0x89c25ba156f1d89b:0x6f68f1438382b270",
+          "cid": "8027931608059392624",
+          "reviewsCount": 820,
+          "reviewsDistribution": {
+            "oneStar": 38,
+            "twoStar": 18,
+            "threeStar": 6,
+            "fourStar": 11,
+            "fiveStar": 747
+          },
+          "imagesCount": 107,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.202Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "9 AM to 8 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "9 AM to 8 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "9 AM to 8 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "9 AM to 8 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "9 AM to 8 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "10 AM to 7 PM"
+            },
+            {
+              "day": "Sunday",
+              "hours": "10 AM to 7 PM"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=Skullfade%20Barbers&query_place_id=ChIJm9jxVqFbwokRcLKCg0PxaG8",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 2,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWmaVf7Niuc1TpRTh7FqoKUrEH9rfseJ4G_VeRMtvgDAm3P6sjRa8uy1ZU7o2L0Nzqy33kpbX_jo7M5YxENxQLpygjFqNHeAzhMInLGFgBU0m_xyDSs8UNzx2e40unBHn_pLL66IcQ=w408-h272-k-no",
+          "kgmid": "/g/11pqbkw116",
+          "businessProfileId": "13235342896976827763"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      },
+      {
+        "json": {
+          "title": "43 Nassau Street Barbershop",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "43 Nassau St, New York, NY 10005",
+          "neighborhood": "Manhattan",
+          "street": "43 Nassau St",
+          "city": "New York",
+          "postalCode": "10005",
+          "state": "New York",
+          "countryCode": "US",
+          "website": "https://nassaustreetbarber.com/",
+          "phone": "(929) 527-9298",
+          "phoneUnformatted": "+19295279298",
+          "claimThisBusiness": false,
+          "location": {
+            "lat": 40.7088711,
+            "lng": -74.0092856
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 5,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJ_UURyItbwokRTyhGW2wm9NA",
+          "categories": [
+            "Barber shop",
+            "Hair salon"
+          ],
+          "fid": "0x89c25b8bc81145fd:0xd0f4266c5b46284f",
+          "cid": "15056701701036058703",
+          "reviewsCount": 204,
+          "reviewsDistribution": {
+            "oneStar": 1,
+            "twoStar": 1,
+            "threeStar": 0,
+            "fourStar": 0,
+            "fiveStar": 202
+          },
+          "imagesCount": 185,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.203Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "Closed"
+            },
+            {
+              "day": "Sunday",
+              "hours": "10 AM to 5 PM"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "additionalInfo": {
+            "Accessibility": [
+              {
+                "Wheelchair accessible seating": true
+              },
+              {
+                "Assistive hearing loop": false
+              },
+              {
+                "Wheelchair accessible entrance": false
+              },
+              {
+                "Wheelchair accessible parking lot": false
+              },
+              {
+                "Wheelchair accessible restroom": false
+              }
+            ]
+          },
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=43%20Nassau%20Street%20Barbershop&query_place_id=ChIJ_UURyItbwokRTyhGW2wm9NA",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 3,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWm7ulCO9PL8C4NsM3IjhOBhnpHyep_tMFW3WvSCKCcQp65ae56pJeC1ez9awAk2L7Z61MjtBPl4pzSANrSsfe47siMlzEjOfHwFddd6oHA1WTONauJplZGBqdfaZYX6zm78VBA3VcoVV64=w408-h544-k-no",
+          "kgmid": "/g/11yfyhppsx",
+          "businessProfileId": "10869267548428120168"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      },
+      {
+        "json": {
+          "title": "11 Broadway Barber Shop",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "11 Broadway, New York, NY 10004",
+          "neighborhood": "Manhattan",
+          "street": "11 Broadway",
+          "city": "New York",
+          "postalCode": "10004",
+          "state": "New York",
+          "countryCode": "US",
+          "website": "https://11broadway.brbrshop.com/",
+          "phone": "(212) 269-2599",
+          "phoneUnformatted": "+12122692599",
+          "claimThisBusiness": false,
+          "location": {
+            "lat": 40.7052656,
+            "lng": -74.0139733
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 4.7,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJFdlGXhFawokRzTK9nor8KVc",
+          "categories": [
+            "Barber shop"
+          ],
+          "fid": "0x89c25a115e46d915:0x5729fc8a9ebd32cd",
+          "cid": "6280828827643753165",
+          "reviewsCount": 415,
+          "reviewsDistribution": {
+            "oneStar": 17,
+            "twoStar": 8,
+            "threeStar": 8,
+            "fourStar": 31,
+            "fiveStar": 351
+          },
+          "imagesCount": 29,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.203Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "7:30 AM to 7:30 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "7:30 AM to 7:30 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "7:30 AM to 7:30 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "7:30 AM to 7:30 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "7:30 AM to 7:30 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "9 AM to 6 PM"
+            },
+            {
+              "day": "Sunday",
+              "hours": "9 AM to 6 PM"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "additionalInfo": {
+            "Accessibility": [
+              {
+                "Wheelchair accessible entrance": true
+              },
+              {
+                "Wheelchair accessible parking lot": true
+              },
+              {
+                "Wheelchair accessible restroom": true
+              },
+              {
+                "Wheelchair accessible seating": true
+              }
+            ]
+          },
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=11%20Broadway%20Barber%20Shop&query_place_id=ChIJFdlGXhFawokRzTK9nor8KVc",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 4,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWmcYKHTmJCJCAWYXvti__w3hrQrlQvaUBDz5aW9RKtEEFE9oFuDBVNaE0z-NM-9Xu2JnYCTA1aVCqwYnFFllRwfSXhG7_axloDNcUqNxtYgh3QpXBLd5SYJUI0Bbg6dSCx-YXex=w408-h306-k-no",
+          "kgmid": "/g/1tmy5zlg",
+          "businessProfileId": "15011613464419971254"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      },
+      {
+        "json": {
+          "title": "Styling Haircutters Barber Shop",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "123 Fulton St, New York, NY 10038",
+          "neighborhood": "Manhattan",
+          "street": "123 Fulton St",
+          "city": "New York",
+          "postalCode": "10038",
+          "state": "New York",
+          "countryCode": "US",
+          "phone": "(212) 571-9832",
+          "phoneUnformatted": "+12125719832",
+          "claimThisBusiness": true,
+          "location": {
+            "lat": 40.7100605,
+            "lng": -74.0072342
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 4.7,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJNUL7ERhawokRQ214FUekk1E",
+          "categories": [
+            "Barber shop"
+          ],
+          "fid": "0x89c25a1811fb4235:0x5193a44715786d43",
+          "cid": "5878222563858476355",
+          "reviewsCount": 265,
+          "reviewsDistribution": {
+            "oneStar": 5,
+            "twoStar": 5,
+            "threeStar": 6,
+            "fourStar": 22,
+            "fiveStar": 227
+          },
+          "imagesCount": 32,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.203Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "7 AM to 6:30 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "7 AM to 6:30 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "7 AM to 6:30 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "7 AM to 6:30 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "7 AM to 6:30 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "Closed"
+            },
+            {
+              "day": "Sunday",
+              "hours": "Closed"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "additionalInfo": {
+            "Accessibility": [
+              {
+                "Wheelchair accessible entrance": true
+              },
+              {
+                "Wheelchair accessible parking lot": false
+              }
+            ]
+          },
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=Styling%20Haircutters%20Barber%20Shop&query_place_id=ChIJNUL7ERhawokRQ214FUekk1E",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 5,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWlssyANUBhrE4VnMcSW5Dj46AhNClf3LkkT1D-HlmFXS022Mf3wvlegeZA_vFSJsff-WGTY83mePVqkRDs3c2FU-46pdU4XEhk1kmE5MuVY6z0xQF8Yhk4Vek5U5HQIGL1gGPKj6Q=w408-h458-k-no",
+          "kgmid": "/g/1tfg8lgj",
+          "businessProfileId": null
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      },
+      {
+        "json": {
+          "title": "Ray's Barber Shop Tribeca",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "46 Park Pl, New York, NY 10007",
+          "neighborhood": "Manhattan",
+          "street": "46 Park Pl",
+          "city": "New York",
+          "postalCode": "10007",
+          "state": "New York",
+          "countryCode": "US",
+          "website": "https://rays.brbrshop.com/",
+          "phone": "(646) 828-1052",
+          "phoneUnformatted": "+16468281052",
+          "claimThisBusiness": false,
+          "location": {
+            "lat": 40.7133854,
+            "lng": -74.0098715
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 4.9,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJ-wlUIh9awokRumcBmhOlegU",
+          "categories": [
+            "Barber shop"
+          ],
+          "fid": "0x89c25a1f225409fb:0x57aa5139a0167ba",
+          "cid": "394809420955084730",
+          "reviewsCount": 1764,
+          "reviewsDistribution": {
+            "oneStar": 29,
+            "twoStar": 5,
+            "threeStar": 13,
+            "fourStar": 37,
+            "fiveStar": 1680
+          },
+          "imagesCount": 78,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.203Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "8 AM to 7 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "8 AM to 7 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "8 AM to 7 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "8 AM to 7 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "8 AM to 7 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "8 AM to 5 PM"
+            },
+            {
+              "day": "Sunday",
+              "hours": "10 AM to 4 PM"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "additionalInfo": {
+            "Accessibility": [
+              {
+                "Wheelchair accessible entrance": false
+              },
+              {
+                "Wheelchair accessible parking lot": false
+              }
+            ]
+          },
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=Ray's%20Barber%20Shop%20Tribeca&query_place_id=ChIJ-wlUIh9awokRumcBmhOlegU",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 6,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWlX64rIV1A3Maj7IWBgmHq92sOjg9o_lFN_cRywoSiZZfp3MaNVWTFvM0-SFBExUPtuCYgohOmApZa0lJvwR0kHo8u5rKb6x3ohWH0zLIhHaiQLx5X2Zbj_tBTBvlFn4fKvT6NQng=w426-h240-k-no",
+          "kgmid": "/g/1th880yq",
+          "businessProfileId": "11845671987230872213"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      },
+      {
+        "json": {
+          "title": "Pine Street Barbershop",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "79 Pine St, New York, NY 10005",
+          "neighborhood": "Manhattan",
+          "street": "79 Pine St",
+          "city": "New York",
+          "postalCode": "10005",
+          "state": "New York",
+          "countryCode": "US",
+          "phone": "(212) 482-0877",
+          "phoneUnformatted": "+12124820877",
+          "claimThisBusiness": false,
+          "location": {
+            "lat": 40.70579,
+            "lng": -74.007221
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 4.8,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJtQHKJBZawokRSYkh5QDj2hI",
+          "categories": [
+            "Barber shop",
+            "Hair salon"
+          ],
+          "fid": "0x89c25a1624ca01b5:0x12dae300e5218949",
+          "cid": "1358647830589311305",
+          "reviewsCount": 82,
+          "reviewsDistribution": {
+            "oneStar": 3,
+            "twoStar": 0,
+            "threeStar": 1,
+            "fourStar": 5,
+            "fiveStar": 73
+          },
+          "imagesCount": 15,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.203Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "8:30 AM to 6 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "8:30 AM to 6 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "8:30 AM to 6 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "8:30 AM to 6 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "8:30 AM to 2 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "Closed"
+            },
+            {
+              "day": "Sunday",
+              "hours": "Closed"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "additionalInfo": {
+            "Accessibility": [
+              {
+                "Wheelchair accessible entrance": false
+              },
+              {
+                "Wheelchair accessible parking lot": false
+              }
+            ]
+          },
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=Pine%20Street%20Barbershop&query_place_id=ChIJtQHKJBZawokRSYkh5QDj2hI",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 7,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWlYLd-OUiK-wGA2aza--vk30_j1BkOjL3cYgeGEvk2zeScX9k976tlgACVy2DyBcxqzZpNL7R9ozDyakNJ9a8KxLKI09AehtYM8DTvn3Z8t0DnLOSEx5WBAPwR9q_V4OgxXlfLaIQ=w408-h503-k-no",
+          "kgmid": "/g/11g_t296p",
+          "businessProfileId": "8542965316873400762"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      },
+      {
+        "json": {
+          "title": "Head of State Barbershop",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "Head of State, 58 Orchard St, New York, NY 10002",
+          "neighborhood": "Manhattan",
+          "street": "Head of State, 58 Orchard St",
+          "city": "New York",
+          "postalCode": "10002",
+          "state": "New York",
+          "countryCode": "US",
+          "website": "https://getsquire.com/discover/barbershop/head-of-state-new-york?hl=en-US&gei=RQr3Z776IJuw5NoPn82ImQ8&rwg_token=AAiGsoZwdXxii-iNJ-qNeiB1HZW815oXrykCc0UDC6fryk1gHSvI5AAlrldUirZcxrAk6KkgEeYcsRqG1SBKFJ7hSSStU48uJg%3D%3D",
+          "phone": "(646) 449-0333",
+          "phoneUnformatted": "+16464490333",
+          "claimThisBusiness": false,
+          "location": {
+            "lat": 40.7166749,
+            "lng": -73.9906932
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 4.9,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJYd83C3dZwokRo_lhj9tD-2U",
+          "categories": [
+            "Barber shop",
+            "Hair salon"
+          ],
+          "fid": "0x89c259770b37df61:0x65fb43db8f61f9a3",
+          "cid": "7348541827267557795",
+          "reviewsCount": 144,
+          "reviewsDistribution": {
+            "oneStar": 4,
+            "twoStar": 1,
+            "threeStar": 0,
+            "fourStar": 0,
+            "fiveStar": 139
+          },
+          "imagesCount": 42,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.203Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "9 AM to 8 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "9 AM to 8 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "9 AM to 8 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "9 AM to 8 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "9 AM to 8 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "10 AM to 8 PM"
+            },
+            {
+              "day": "Sunday",
+              "hours": "10 AM to 8 PM"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=Head%20of%20State%20Barbershop&query_place_id=ChIJYd83C3dZwokRo_lhj9tD-2U",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 8,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWk5HVGxozSrfqrmuaQPbikCwFCz-i_9ccGSaCYWtolxvlyzQcyboqz89Hjc2Je3GXsNv2dDDih9jIE7Fm6xj0VFzPu4an-_DBvyxnvPFaCutmPRE-LaAsG3tu_bqN2WJ6BYqdCqtw=w408-h306-k-no",
+          "kgmid": "/g/11v3pqh9mq",
+          "businessProfileId": "10658287681062851220"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      },
+      {
+        "json": {
+          "title": "MASTER BARBERSHOP & HAIR SALON - TRIBECA NYC - BY ILYA",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "90 Worth St, Manhattan, NY 11013",
+          "neighborhood": "Manhattan",
+          "street": "90 Worth St",
+          "city": "Manhattan",
+          "postalCode": "11013",
+          "state": "New York",
+          "countryCode": "US",
+          "website": "https://masterbarberstudio.com/",
+          "phone": "(212) 431-3984",
+          "phoneUnformatted": "+12124313984",
+          "claimThisBusiness": false,
+          "location": {
+            "lat": 40.7162852,
+            "lng": -74.0049425
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 5,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJSdly0KJbwokRk0L61Lk03I4",
+          "categories": [
+            "Barber shop"
+          ],
+          "fid": "0x89c25ba2d072d949:0x8edc34b9d4fa4293",
+          "cid": "10294160821008876179",
+          "reviewsCount": 15,
+          "reviewsDistribution": {
+            "oneStar": 0,
+            "twoStar": 0,
+            "threeStar": 0,
+            "fourStar": 0,
+            "fiveStar": 15
+          },
+          "imagesCount": 13,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.203Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "9 AM to 6 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "6 AM to 6 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "9 AM to 6 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "9 AM to 6 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "9 AM to 6 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "Closed"
+            },
+            {
+              "day": "Sunday",
+              "hours": "10 AM to 4 PM"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=MASTER%20BARBERSHOP%20%26%20HAIR%20SALON%20-%20TRIBECA%20NYC%20-%20BY%20ILYA&query_place_id=ChIJSdly0KJbwokRk0L61Lk03I4",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 9,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWm1pG7fVO08B_-hgcX56SgOwaz8_QVQ_2NM3zsay36KiVVtFyC1qfH7IfjEEiQXqS7voTcRcirt4LDHtx9pj2QJMmdyjk7EfI4Bfo0ayE6jR__YewPTayC_RrjYOviAuTboln9IgnLZATpL=w408-h272-k-no",
+          "kgmid": "/g/11n9c3n1rw",
+          "businessProfileId": "11627446316766210093"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      },
+      {
+        "json": {
+          "title": "UNDERCUT BARBERSHOP 2",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "350 Broadway, New York, NY 10013",
+          "neighborhood": "Manhattan",
+          "street": "350 Broadway",
+          "city": "New York",
+          "postalCode": "10013",
+          "state": "New York",
+          "countryCode": "US",
+          "website": "https://www.undercut2.com/",
+          "phone": "(718) 889-2268",
+          "phoneUnformatted": "+17188892268",
+          "claimThisBusiness": false,
+          "location": {
+            "lat": 40.7168958,
+            "lng": -74.0037433
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 5,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJ-9g_BH1bwokRz2j4vqixaBc",
+          "categories": [
+            "Barber shop"
+          ],
+          "fid": "0x89c25b7d043fd8fb:0x1768b1a8bef868cf",
+          "cid": "1686793398766823631",
+          "reviewsCount": 453,
+          "reviewsDistribution": {
+            "oneStar": 2,
+            "twoStar": 1,
+            "threeStar": 0,
+            "fourStar": 2,
+            "fiveStar": 448
+          },
+          "imagesCount": 85,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.203Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "8:30 AM to 7:30 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "8:30 AM to 7:30 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "8:30 AM to 7:30 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "8:30 AM to 7:30 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "8:30 AM to 7:30 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "8:30 AM to 7:30 PM"
+            },
+            {
+              "day": "Sunday",
+              "hours": "9 AM to 6 PM"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=UNDERCUT%20BARBERSHOP%202&query_place_id=ChIJ-9g_BH1bwokRz2j4vqixaBc",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 10,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWnrraJMnvx1D9WLyA3ypNxOntr0__nk6RbjXLBgyB4CNsWrrKr_-_CCbjHznKTcGddxEaC-yhrK1tS2FFr6GNQgwGRSsBJ6xMdpZB-VWGBGKpAzImTqcgWjdiWS58noQsYC97OT=w408-h307-k-no",
+          "kgmid": "/g/11x2z6m6w1",
+          "businessProfileId": "4437512520974393472"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      },
+      {
+        "json": {
+          "title": "Gentleman's Barber Spa NYC",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "200 Church St, New York, NY 10013",
+          "neighborhood": "Manhattan",
+          "street": "200 Church St",
+          "city": "New York",
+          "postalCode": "10013",
+          "state": "New York",
+          "countryCode": "US",
+          "website": "https://gentlemansbarberspanyc.com/",
+          "phone": "(646) 490-5008",
+          "phoneUnformatted": "+16464905008",
+          "claimThisBusiness": false,
+          "location": {
+            "lat": 40.7165525,
+            "lng": -74.0069154
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 4.8,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJS6o8gh9awokRbLVQ-WfIuSQ",
+          "categories": [
+            "Barber shop"
+          ],
+          "fid": "0x89c25a1f823caa4b:0x24b9c867f950b56c",
+          "cid": "2646366604946879852",
+          "reviewsCount": 473,
+          "reviewsDistribution": {
+            "oneStar": 19,
+            "twoStar": 3,
+            "threeStar": 4,
+            "fourStar": 3,
+            "fiveStar": 444
+          },
+          "imagesCount": 228,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.204Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "10 AM to 8 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "10 AM to 8 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "10 AM to 8 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "10 AM to 8 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "10 AM to 8 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "9 AM to 6 PM"
+            },
+            {
+              "day": "Sunday",
+              "hours": "10 AM to 6 PM"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "additionalInfo": {
+            "Accessibility": [
+              {
+                "Wheelchair accessible parking lot": false
+              }
+            ]
+          },
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=Gentleman's%20Barber%20Spa%20NYC&query_place_id=ChIJS6o8gh9awokRbLVQ-WfIuSQ",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 11,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWmyINzBlbG96ux4cVdO52P-hFNMBH0Dcx_IG7YyHjCiDYV3uC2IswLSndUrwffxQpWRkzwNThdwoa69HvTc4Rq6a5d7t-TuuC8ttcP-X0Atvbg7goeec3kFAfWjCZUIHouEAnzlFg=w408-h306-k-no",
+          "kgmid": "/g/11gmyw9zb8",
+          "businessProfileId": "14400022252395297282"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      },
+      {
+        "json": {
+          "title": "Imperial Barbershop 4 NYC",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "130 Church St, New York, NY 10007",
+          "neighborhood": "Manhattan",
+          "street": "130 Church St",
+          "city": "New York",
+          "postalCode": "10007",
+          "state": "New York",
+          "countryCode": "US",
+          "website": "http://www.imperialbarbershopsnyc.com/",
+          "phone": "(929) 458-5504",
+          "phoneUnformatted": "+19294585504",
+          "claimThisBusiness": false,
+          "location": {
+            "lat": 40.7140582,
+            "lng": -74.008918
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 4.9,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJu_6yv4JbwokRYw3FWDU5Uss",
+          "categories": [
+            "Barber shop"
+          ],
+          "fid": "0x89c25b82bfb2febb:0xcb52393558c50d63",
+          "cid": "14650835439075003747",
+          "reviewsCount": 104,
+          "reviewsDistribution": {
+            "oneStar": 2,
+            "twoStar": 0,
+            "threeStar": 0,
+            "fourStar": 0,
+            "fiveStar": 102
+          },
+          "imagesCount": 103,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.204Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "8 AM to 7 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "8 AM to 7 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "8 AM to 7 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "8 AM to 7 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "8 AM to 7 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "9 AM to 6 PM"
+            },
+            {
+              "day": "Sunday",
+              "hours": "10 AM to 5 PM"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "additionalInfo": {
+            "Accessibility": [
+              {
+                "Wheelchair accessible seating": true
+              }
+            ]
+          },
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=Imperial%20Barbershop%204%20NYC&query_place_id=ChIJu_6yv4JbwokRYw3FWDU5Uss",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 12,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWmQC8k4_qGGPDXdWHK1TYZHdjv3Z-MygOebdOwlDEW7MWOELk5oWgqLFfkEg4SPDklicxuwtCLTm3Rw1ItzbAqyxQU_h_t_WdTiaScxMO8rarGDu_gl_XBRSxDofuRNo_LbZ6i7QBDUWKSu=w408-h510-k-no",
+          "kgmid": "/g/11xh2zy08b",
+          "businessProfileId": "1824063656692724679"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      },
+      {
+        "json": {
+          "title": "Frank's Chop Shop Barbershop",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "34 Orchard St, New York, NY 10002",
+          "neighborhood": "Manhattan",
+          "street": "34 Orchard St",
+          "city": "New York",
+          "postalCode": "10002",
+          "state": "New York",
+          "countryCode": "US",
+          "website": "https://getsquire.com/discover/barbershop/franks-chop-shop-new-york?hl=en-US&gei=P3aaZ7PAFvncptQPh8_w-A4&rwg_token=AAiGsobFDCxwZFjvuN7PChGqwRxKpf0A_tOyvOECn-H4SAINoWKd2J4yMJWJsNfPxA9s_h43wNLfIMc57159oIWNvWglYaOwWw%3D%3D#services",
+          "phone": "(212) 228-7442",
+          "phoneUnformatted": "+12122287442",
+          "claimThisBusiness": false,
+          "location": {
+            "lat": 40.7156458,
+            "lng": -73.9914032
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 4.6,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJT5O2lClawokRZq23p3BN52c",
+          "categories": [
+            "Barber shop",
+            "Hair salon"
+          ],
+          "fid": "0x89c25a2994b6934f:0x67e74d70a7b7ad66",
+          "cid": "7487038051772247398",
+          "reviewsCount": 334,
+          "reviewsDistribution": {
+            "oneStar": 21,
+            "twoStar": 6,
+            "threeStar": 3,
+            "fourStar": 16,
+            "fiveStar": 288
+          },
+          "imagesCount": 44,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.204Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "10 AM to 10 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "10 AM to 10 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "10 AM to 10 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "10 AM to 10 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "10 AM to 10 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "10 AM to 10 PM"
+            },
+            {
+              "day": "Sunday",
+              "hours": "10 AM to 10 PM"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "additionalInfo": {
+            "Accessibility": [
+              {
+                "Wheelchair accessible parking lot": false
+              }
+            ]
+          },
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=Frank's%20Chop%20Shop%20Barbershop&query_place_id=ChIJT5O2lClawokRZq23p3BN52c",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 13,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWntqYJwIJtV-Ww-KZA71p0Ty6exddQ5H5H2jEX1fF7gb5KkPYrICNdm1YIvwAHiOmGRAKDLTE5QnaEMSoMQwwqH3MMOTpSA65A7WKqPA7bsTbmotxz_L11R_T_ENhdRAzSyQOo=w408-h544-k-no",
+          "kgmid": "/g/1tg6wm5l",
+          "businessProfileId": "7873724706914313667"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      },
+      {
+        "json": {
+          "title": "Royal Barber Shop",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "90 William St, New York, NY 10038",
+          "neighborhood": "Manhattan",
+          "street": "90 William St",
+          "city": "New York",
+          "postalCode": "10038",
+          "state": "New York",
+          "countryCode": "US",
+          "website": "http://www.royal-barbershop.com/",
+          "phone": "(212) 962-6114",
+          "phoneUnformatted": "+12129626114",
+          "claimThisBusiness": true,
+          "location": {
+            "lat": 40.7082023,
+            "lng": -74.0075126
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 4.8,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJYSy6ryJawokRtRjHh68406E",
+          "categories": [
+            "Barber shop"
+          ],
+          "fid": "0x89c25a22afba2c61:0xa1d338af87c718b5",
+          "cid": "11660726186740750517",
+          "reviewsCount": 44,
+          "reviewsDistribution": {
+            "oneStar": 2,
+            "twoStar": 0,
+            "threeStar": 0,
+            "fourStar": 0,
+            "fiveStar": 42
+          },
+          "imagesCount": 25,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.204Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "7:30 AM to 6 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "7:30 AM to 6 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "7:30 AM to 6 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "7:30 AM to 6 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "7:30 AM to 6 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "Closed"
+            },
+            {
+              "day": "Sunday",
+              "hours": "Closed"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "additionalInfo": {
+            "Accessibility": [
+              {
+                "Wheelchair accessible parking lot": false
+              }
+            ]
+          },
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=Royal%20Barber%20Shop&query_place_id=ChIJYSy6ryJawokRtRjHh68406E",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 14,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWkSSen62IoF2FVj9NuLIzmJ9dnAPpdECAAv4LB-Ru3WoxpngNaiwvwEcMsffO_2Eadhls22jMRCblVypQ9Sd43jBDNcyhtzi8Zm9jE2dPZwGQ8mUsjTNo0LS6K9DZlELrAYfoXf=w408-h272-k-no",
+          "kgmid": "/g/1td8_0vx",
+          "businessProfileId": null
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      },
+      {
+        "json": {
+          "title": "Da Zhong Barber Shop",
+          "subTitle": null,
+          "description": null,
+          "ownerDescription": null,
+          "price": null,
+          "categoryName": "Barber shop",
+          "address": "63 Bayard St, New York, NY 10013",
+          "neighborhood": "Manhattan",
+          "street": "63 Bayard St",
+          "city": "New York",
+          "postalCode": "10013",
+          "state": "New York",
+          "countryCode": "US",
+          "phone": "(646) 633-1806",
+          "phoneUnformatted": "+16466331806",
+          "claimThisBusiness": true,
+          "location": {
+            "lat": 40.7153242,
+            "lng": -73.9980929
+          },
+          "locatedIn": null,
+          "floor": null,
+          "plusCode": null,
+          "menu": null,
+          "servicesLink": null,
+          "totalScore": 4.4,
+          "permanentlyClosed": false,
+          "temporarilyClosed": false,
+          "placeId": "ChIJ7bwjAidawokRekGZMx5zRq8",
+          "categories": [
+            "Barber shop"
+          ],
+          "fid": "0x89c25a270223bced:0xaf46731e3399417a",
+          "cid": "12629908778559029626",
+          "reviewsCount": 269,
+          "reviewsDistribution": {
+            "oneStar": 20,
+            "twoStar": 5,
+            "threeStar": 12,
+            "fourStar": 32,
+            "fiveStar": 200
+          },
+          "imagesCount": 54,
+          "imageCategories": [],
+          "scrapedAt": "2026-09-17T09:17:57.204Z",
+          "reserveTableUrl": null,
+          "googleFoodUrl": null,
+          "hotelStars": null,
+          "hotelDescription": null,
+          "checkInDate": null,
+          "checkOutDate": null,
+          "hotelAds": [],
+          "popularTimesLiveText": null,
+          "popularTimesLivePercent": null,
+          "popularTimesHistogram": {},
+          "openingHours": [
+            {
+              "day": "Monday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Tuesday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Wednesday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Thursday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Friday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Saturday",
+              "hours": "9 AM to 7 PM"
+            },
+            {
+              "day": "Sunday",
+              "hours": "9 AM to 7 PM"
+            }
+          ],
+          "wasOpenAtScrapeTime": false,
+          "peopleAlsoSearch": [],
+          "placesTags": [],
+          "reviewsTags": [],
+          "additionalInfo": {
+            "Accessibility": [
+              {
+                "Wheelchair accessible entrance": false
+              },
+              {
+                "Wheelchair accessible parking lot": false
+              }
+            ]
+          },
+          "gasPrices": [],
+          "url": "https://www.google.com/maps/search/?api=1&query=Da%20Zhong%20Barber%20Shop&query_place_id=ChIJ7bwjAidawokRekGZMx5zRq8",
+          "searchPageUrl": "https://www.google.com/maps/search/Barber%20shop%20in%20New%20York?hl=en",
+          "searchString": "Barber shop in New York",
+          "language": "en",
+          "rank": 15,
+          "isAdvertisement": false,
+          "imageUrl": "https://lh3.googleusercontent.com/gps-cs-s/AHRPTWlAOYDMjDuT2s2Ad2h35thZnAv3DW3lK8od32i6wLDz78xVAcAy3dgjXJvGBoVdmMyznUY4bZAZfLKSJrfQ6IaWgmaWoOEMxKVoIFBLifxHC58eMiNlD6OMr97NH8Km5bKb7s9B_lV9aj2S=w408-h544-k-no",
+          "kgmid": "/g/11bw4ypgpr",
+          "businessProfileId": null
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Process Leads One By One",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Leads One By One": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AI Score and Draft Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Score and Draft Message": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Process Leads One By One",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "b7c5c48d-4197-49c4-8d7f-0638f2cadc3d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "2e99dbc2809c773b1f8524944f7796349fe3ddaea92734e9388f00761c62cdc9"
+  },
+  "nodeGroups": [],
+  "id": "o5TPVSMEFnUjPATq",
+  "tags": []
+}
